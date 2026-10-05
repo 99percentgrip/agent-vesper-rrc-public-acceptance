@@ -63,6 +63,8 @@ architecture, MSRV, and source-oracle checks.
   restrictions requiring owner action without source repair or outage retry.
   The named native-worker case executes both direct and continuous routes and pins
   owner-action/uncertainty settlement before permission, repair or mutation journals.
+  The named health-routing case proves read-only diagnosis without source permission,
+  authoritative rerun refusal and firewall checks for the actual GitHub write scope.
 
 ## Verification
 

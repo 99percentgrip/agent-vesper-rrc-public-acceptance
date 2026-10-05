@@ -74,6 +74,10 @@ Z.ai and Playwright MCP server descriptors.
   Direct executor and continuous worker honor this directive before source repair,
   host mutation permission or mutation journaling; uncertain causes stop for evidence
   before those side effects as well.
+  Read-only infrastructure health checks likewise precede mutation permission and
+  journaling. An admitted infrastructure rerun still requires owner permission and
+  scans the actual scoped `gh api --method POST .../rerun` commands; unrelated Git
+  patch rules cannot substitute for GitHub write policy.
   CI logs strip terminal controls and exclude runner command echoes before causal
   extraction; fingerprints ignore unrelated interleaved output/exit wrappers.
   A 404 log response may use bounded failure annotations only from the completed

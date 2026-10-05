@@ -1895,51 +1895,30 @@ pub fn advance_release(
     Ok(())
 }
 
-fn authorize_controller_step(
-    factory: Option<&crate::WorkerFactory>,
-    record: &ReleaseRecoveryRecord,
-    cancelled: &AtomicBool,
-) -> Result<(), RrcError> {
-    let factory = factory.ok_or_else(|| {
-        RrcError::MutationBlocked("release mutation requires a host permission port".into())
-    })?;
-    let tool_id = vesper_domain::ToolId::new("release_controller").expect("static tool id");
-    let call = vesper_domain::ToolCall {
-        id: vesper_domain::ToolCallId::new("rrc-approval").expect("static call id"),
-        tool_id: tool_id.clone(),
-        arguments: serde_json::json!({"stage": format!("{:?}", record.state),
-        "candidate": record.active_commit(), "version": record.release_version,
-        "operation": match record.state {
-            ReleaseRecoveryState::LocalVerification => "version preparation, verification or candidate commit",
-            ReleaseRecoveryState::CandidateReady | ReleaseRecoveryState::RetryAdmissible => "push the exact admitted candidate to origin/main",
-            ReleaseRecoveryState::RemoteGatesGreen => "create and push immutable release tag; this starts publication",
-            _ => "bounded focused repair, local checks and verified commit promotion",
-        }}),
-        extensions: Default::default(),
-    };
-    let definition = vesper_domain::ToolDefinition {
-        id: tool_id,
-        harness_name: vesper_domain::HarnessToolName::new("release_controller")
-            .expect("static tool name"),
-        provider_name: None,
-        description: "Release controller side effect".into(),
-        input_schema: serde_json::json!({"type":"object"}),
-        execution_class: vesper_domain::ToolExecutionClass::Mutating,
-        provider_scope: Default::default(),
-        extensions: Default::default(),
-        defer_loading: false,
-    };
-    let context = vesper_agent::ToolContext {
-        workspace_roots: factory.config.workspace_roots.clone(),
-        firewall: factory.config.firewall.clone(),
-        sandbox: factory.config.sandbox.clone(),
-        provider_id: factory.config.provider_id.clone(),
-        operating_mode: factory.release_mode,
-        permission_mode: factory.release_permission,
-        conversation: Vec::new(),
-        cancellation: Arc::new(vesper_runtime::RuntimeCancellation::new()),
-    };
-    let stage_commands = match record.state {
+fn release_stage_commands(record: &ReleaseRecoveryRecord, repository: &str) -> Vec<String> {
+    match record.state {
+        ReleaseRecoveryState::ClassifyingFailure
+            if record
+                .failures
+                .last()
+                .is_some_and(|failure| failure.class.infrastructure_like()) =>
+        {
+            if !record
+                .retry_admission(crate::release_recovery::RetryKind::Infrastructure)
+                .admitted
+            {
+                return Vec::new();
+            }
+            record
+                .required_gates
+                .iter()
+                .filter(|gate| gate.has_failure())
+                .filter_map(|gate| gate.run_id)
+                .map(|run| {
+                    format!("gh api --method POST repos/{repository}/actions/runs/{run}/rerun")
+                })
+                .collect()
+        }
         ReleaseRecoveryState::CandidateReady | ReleaseRecoveryState::RetryAdmissible => {
             vec![format!(
                 "git push origin {}:refs/heads/main",
@@ -1973,7 +1952,56 @@ fn authorize_controller_step(
             "git apply --binary --index".into(),
             "git commit -m fix(release)".into(),
         ],
+    }
+}
+
+fn authorize_controller_step(
+    factory: Option<&crate::WorkerFactory>,
+    record: &ReleaseRecoveryRecord,
+    repository: &str,
+    cancelled: &AtomicBool,
+) -> Result<(), RrcError> {
+    let factory = factory.ok_or_else(|| {
+        RrcError::MutationBlocked("release mutation requires a host permission port".into())
+    })?;
+    let tool_id = vesper_domain::ToolId::new("release_controller").expect("static tool id");
+    let call = vesper_domain::ToolCall {
+        id: vesper_domain::ToolCallId::new("rrc-approval").expect("static call id"),
+        tool_id: tool_id.clone(),
+        arguments: serde_json::json!({"stage": format!("{:?}", record.state),
+        "candidate": record.active_commit(), "version": record.release_version,
+        "operation": match record.state {
+            ReleaseRecoveryState::LocalVerification => "version preparation, verification or candidate commit",
+            ReleaseRecoveryState::CandidateReady | ReleaseRecoveryState::RetryAdmissible => "push the exact admitted candidate to origin/main",
+            ReleaseRecoveryState::RemoteGatesGreen => "create and push immutable release tag; this starts publication",
+            ReleaseRecoveryState::ClassifyingFailure if record.failures.last().is_some_and(|failure| failure.class.infrastructure_like()) => "rerun the exact admitted failed infrastructure gates on GitHub",
+            _ => "bounded focused repair, local checks and verified commit promotion",
+        }}),
+        extensions: Default::default(),
     };
+    let definition = vesper_domain::ToolDefinition {
+        id: tool_id,
+        harness_name: vesper_domain::HarnessToolName::new("release_controller")
+            .expect("static tool name"),
+        provider_name: None,
+        description: "Release controller side effect".into(),
+        input_schema: serde_json::json!({"type":"object"}),
+        execution_class: vesper_domain::ToolExecutionClass::Mutating,
+        provider_scope: Default::default(),
+        extensions: Default::default(),
+        defer_loading: false,
+    };
+    let context = vesper_agent::ToolContext {
+        workspace_roots: factory.config.workspace_roots.clone(),
+        firewall: factory.config.firewall.clone(),
+        sandbox: factory.config.sandbox.clone(),
+        provider_id: factory.config.provider_id.clone(),
+        operating_mode: factory.release_mode,
+        permission_mode: factory.release_permission,
+        conversation: Vec::new(),
+        cancellation: Arc::new(vesper_runtime::RuntimeCancellation::new()),
+    };
+    let stage_commands = release_stage_commands(record, repository);
     let mut firewall_approval = false;
     if let Some(firewall) = &factory.config.firewall {
         for command in stage_commands {
@@ -2068,11 +2096,15 @@ fn release_stage_has_side_effects(record: &ReleaseRecoveryRecord) -> bool {
     use ReleaseRecoveryState as S;
     match record.state {
         S::ClassifyingFailure => {
-            matches!(
-                crate::release_recovery::next_directive(record, 0),
-                ReleaseDirective::RequestFocusedRepair { .. }
-                    | ReleaseDirective::RunExternalHealthCheck
-            ) && record.failures.last().is_some_and(|failure| {
+            (match crate::release_recovery::next_directive(record, 0) {
+                ReleaseDirective::RequestFocusedRepair { .. } => true,
+                ReleaseDirective::RunExternalHealthCheck => {
+                    record
+                        .retry_admission(crate::release_recovery::RetryKind::Infrastructure)
+                        .admitted
+                }
+                _ => false,
+            }) && record.failures.last().is_some_and(|failure| {
                 matches!(
                     failure.confidence,
                     EvidenceConfidence::Proven | EvidenceConfidence::StronglySupported
@@ -2357,7 +2389,14 @@ pub fn spawn_release_worker_with_factory(
                         }
                         true
                     },
-                    |record| authorize_controller_step(repair_factory.as_ref(), record, &cancelled),
+                    |record| {
+                        authorize_controller_step(
+                            repair_factory.as_ref(),
+                            record,
+                            &repository,
+                            &cancelled,
+                        )
+                    },
                 )
             })();
             if let Err(error) = result {
@@ -3585,6 +3624,144 @@ mod tests {
                 assert!(settled.repair_attempts.is_empty());
                 assert_eq!(settled.metrics.model_active_millis, 0);
             }
+        }
+    }
+
+    #[test]
+    fn read_only_health_checks_do_not_request_source_repair_permissions() {
+        struct RunnerFailure;
+        impl GitHubEvidencePort for RunnerFailure {
+            fn matrix_for_sha(
+                &self,
+                repository: &str,
+                sha: &str,
+            ) -> Result<Vec<crate::release_recovery::GateRecord>, RrcError> {
+                let mut gates = GreenGithub.matrix_for_sha(repository, sha)?;
+                gates[0].run_state = Some(crate::release_recovery::JobState::Failure);
+                gates[0].jobs[0].state = crate::release_recovery::JobState::Failure;
+                gates[0].jobs[0].failed_step = Some("Run fixture".into());
+                Ok(gates)
+            }
+            fn job_log(&self, _: &str, _: u64) -> Result<String, RrcError> {
+                Ok("Error: runner connection lost".into())
+            }
+            fn rerun_job(&self, _: &str, _: u64) -> Result<(), RrcError> {
+                panic!("rerun requires owner permission")
+            }
+            fn rerun_failed(&self, _: &str, _: u64) -> Result<(), RrcError> {
+                panic!("rerun requires owner permission")
+            }
+            fn rerun_workflow(&self, _: &str, _: u64) -> Result<(), RrcError> {
+                panic!("rerun requires owner permission")
+            }
+        }
+        let github = RunnerFailure;
+        for recovered in [false, true] {
+            let temp = tempfile::tempdir().unwrap();
+            let ledger = ReleaseLedger::open(temp.path().to_path_buf(), "repo").unwrap();
+            let mut record =
+                crate::release_recovery::start_release("repo", "patch", "main", &"a".repeat(40))
+                    .unwrap();
+            record.state = ReleaseRecoveryState::RemoteGateRunning;
+            refresh_remote_evidence(&mut record, "owner/repo", &github).unwrap();
+            assert!(record.failures.last().unwrap().class.infrastructure_like());
+            if recovered {
+                record.state_changes.push(RelevantStateChange {
+                    kind: RelevantStateChangeKind::ExternalServiceRecovered,
+                    description:
+                        "fixture official recovery observed after the immutable failed attempt"
+                            .into(),
+                    evidence_refs: vec!["fixture:official-recovery".into()],
+                    observed_at: Utc::now(),
+                });
+                assert!(
+                    record
+                        .retry_admission(crate::release_recovery::RetryKind::Infrastructure)
+                        .admitted
+                );
+                assert_eq!(
+                    release_stage_commands(&record, "owner/repo"),
+                    vec!["gh api --method POST repos/owner/repo/actions/runs/1/rerun"]
+                );
+                let (mut factory, _session, _runtime) =
+                    repair_test_factory("health-permission-fixture", "unused");
+                factory.config.firewall = Some(Arc::new(
+                    vesper_policy::firewall::CommandFirewall::compile(&[(
+                        "git",
+                        vesper_policy::firewall::RuleDecision::Deny,
+                        "source edits denied",
+                    )])
+                    .unwrap(),
+                ));
+                assert!(
+                    authorize_controller_step(
+                        Some(&factory),
+                        &record,
+                        "owner/repo",
+                        &AtomicBool::new(false)
+                    )
+                    .is_ok()
+                );
+                factory.config.firewall = Some(Arc::new(
+                    vesper_policy::firewall::CommandFirewall::compile(&[(
+                        "gh",
+                        vesper_policy::firewall::RuleDecision::Deny,
+                        "GitHub writes denied",
+                    )])
+                    .unwrap(),
+                ));
+                assert!(matches!(
+                    authorize_controller_step(
+                        Some(&factory),
+                        &record,
+                        "owner/repo",
+                        &AtomicBool::new(false)
+                    ),
+                    Err(RrcError::MutationBlocked(_))
+                ));
+            } else {
+                assert!(release_stage_commands(&record, "owner/repo").is_empty());
+            }
+            ledger.save(&record).unwrap();
+            let mut permissions = 0;
+            let outcome = drive_release_worker(
+                ReleaseAdvanceContext {
+                    workspace: temp.path(),
+                    repository: "owner/repo",
+                    ledger: &ledger,
+                    executor: &FakeRelease,
+                    github: &github,
+                    health: &HealthyStatus,
+                    repair_factory: None,
+                    cancelled: Arc::new(AtomicBool::new(false)),
+                },
+                |_| true,
+                |_| {
+                    permissions += 1;
+                    assert!(
+                        recovered,
+                        "read-only health must not ask for source mutation permission"
+                    );
+                    Err(RrcError::MutationBlocked(
+                        "fixture owner refused rerun".into(),
+                    ))
+                },
+            );
+            if recovered {
+                assert!(matches!(outcome, Err(RrcError::MutationBlocked(_))));
+                assert_eq!(permissions, 1);
+            } else {
+                outcome.unwrap();
+                assert_eq!(permissions, 0);
+                assert_eq!(
+                    ledger.load().unwrap().unwrap().state,
+                    ReleaseRecoveryState::NeedMoreEvidence
+                );
+            }
+            let settled = ledger.load().unwrap().unwrap();
+            assert_eq!(settled.retry_budget.infrastructure_used, 0);
+            assert!(settled.mutation.in_flight_operation.is_none());
+            assert!(settled.repair_attempts.is_empty());
         }
     }
 
