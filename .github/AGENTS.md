@@ -30,7 +30,9 @@ migration gates and disposable platform assumptions on hosts unavailable locally
   the controlled public acceptance repository; it proves RRC process-tree
   cancellation, persisted restart identity, controller/adapter/policy regressions
   and fixture-backed repair/retry without publication authority. It also runs
-  focused native command settlement and hermetic voice-pack fixtures before
+  the isolated synthetic ACP lifecycle, focused native command settlement,
+  three additional Windows cancellation
+  repetitions, and hermetic voice-pack fixtures before
   the complete production gate retry. These
   fixtures must never replace production exact-commit release gates or intentionally
   break Agent Vesper `main`.

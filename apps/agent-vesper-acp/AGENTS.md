@@ -205,7 +205,9 @@ transport, stderr-only tracing, and orderly shutdown.
   state across successive requests, and streams compaction and quality
   warnings through ordinary ACP updates.
   `tests/provider_selection.rs` is `integration-test-harness`-gated: the
-  synthetic boot token it uses exists only under that feature.
+  synthetic boot token it uses exists only under that feature. The fixture
+  uses explicit signed-out OpenAI/xAI records and an isolated cwd, and reaps its
+  owned child on failure; its five-second protocol and EOF assertions remain.
   The engine executes the 28-command oracle slash catalog in-process
   (ADR 0010 Tier C) with full TUI harness parity: catalog commands answer
   from the harness executor with no provider dispatch, `/max-iterations` and

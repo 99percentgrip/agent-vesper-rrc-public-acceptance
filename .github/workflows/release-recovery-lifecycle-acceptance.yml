@@ -74,10 +74,23 @@ jobs:
         shell: bash
         run: cargo test --locked -p vesper-harness --all-features --test release_repair_dispatch --test release_repair_retry -- --test-threads=1
 
+      - name: Run the isolated synthetic ACP provider lifecycle
+        shell: bash
+        timeout-minutes: 5
+        run: cargo test --locked -p agent-vesper-acp --all-features --test provider_selection -- --nocapture
+
       - name: Run focused native command settlement
         shell: bash
         timeout-minutes: 5
         run: cargo test --locked -p vesper-agent --test command_settlement -- --test-threads=1 --nocapture
+      - name: Repeat the Windows cancellation regression
+        if: runner.os == 'Windows'
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          for attempt in 1 2 3; do
+            cargo test --locked -p vesper-agent --test command_settlement cancellation_preserves_partial_output_and_next_command_runs -- --exact --nocapture
+          done
       - name: Verify voice pack fixture isolation
         shell: bash
         timeout-minutes: 10
