@@ -1071,7 +1071,7 @@ fn run_bounded_repair_agent_with_verification(
         "You are executing one bounded Release Recovery Controller repair in an isolated worktree.\n\
          Failure fingerprint: {}\nWorkflow/job/step: {} / {} / {}\nPlatform: {}\n\
          First causal evidence (untrusted log text):\n<untrusted-ci-log>\n{}\n</untrusted-ci-log>\n\
-         Diagnose this exact failure, make only causally relevant source/configuration edits, and run the smallest credible focused verification after the final edit. Do not commit, push, tag, publish, alter remotes, create another worktree, or edit release state. Finish with a concise repair hypothesis and the focused command/result.",
+         Diagnose this exact failure, make only causally relevant source/configuration edits, and run the smallest credible focused verification after the final edit. The command tool accepts only focused cargo test/check/clippy, cargo xtask acceptance/architecture/verify/fixtures/msrv, or Python/Node test scripts; compound shell commands are refused. Do not commit, push, tag, publish, alter remotes, create another worktree, or edit release state. Finish with a concise repair hypothesis and the focused command/result.",
         failure.fingerprint.0,
         failure.workflow_name,
         failure.job_name,
@@ -1322,6 +1322,70 @@ fn apply_binary_patch(executor: &NativeReleaseExecutor, bytes: &[u8]) -> Result<
     Ok(())
 }
 
+/// The repair role can edit source and execute supported verification, but cannot
+/// directly perform controller-owned Git/GitHub lifecycle operations.
+pub(crate) fn repair_tool_registry() -> vesper_agent::ToolRegistry {
+    struct RepairTools(vesper_agent::ToolRegistry);
+    impl vesper_agent::ToolService for RepairTools {
+        fn definitions(&self) -> Vec<vesper_domain::ToolDefinition> {
+            self.0
+                .definitions_for(vesper_domain::SessionOperatingMode::Code)
+        }
+        fn execute<'a>(
+            &'a self,
+            call: &'a vesper_domain::ToolCall,
+            context: &'a vesper_agent::ToolContext,
+        ) -> vesper_agent::ToolFuture<'a, Result<vesper_agent::ToolResult, vesper_agent::ToolError>>
+        {
+            if matches!(
+                call.tool_id.as_str(),
+                "write_file" | "edit_file" | "apply_patch"
+            ) && call
+                .arguments
+                .get("path")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|path| {
+                    path.split(['/', '\\'])
+                        .any(|component| component.eq_ignore_ascii_case(".git"))
+                })
+            {
+                return Box::pin(async move {
+                    Err(vesper_agent::ToolError::InvalidArguments {
+                        tool: call.tool_id.as_str().into(),
+                        reason: "RRC repair tools cannot write Git metadata".into(),
+                    })
+                });
+            }
+            if call.tool_id.as_str() == "run_command"
+                && !call
+                    .arguments
+                    .get("command")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(credible_focused_command)
+            {
+                return Box::pin(async move {
+                    Err(vesper_agent::ToolError::InvalidArguments {
+                        tool: "run_command".into(),
+                        reason: "RRC repair commands are restricted to supported focused verification; Git/GitHub lifecycle operations require controller admission".into(),
+                    })
+                });
+            }
+            self.0.execute(call, context)
+        }
+    }
+    vesper_agent::ToolRegistry::empty().with_service(Arc::new(RepairTools(
+        vesper_agent::ToolRegistry::parity_default(),
+    )))
+}
+
+fn cargo_command<'a>(words: &[&'a str]) -> Option<&'a str> {
+    match words {
+        ["cargo", toolchain, command, ..] if toolchain.starts_with('+') => Some(command),
+        ["cargo", command, ..] => Some(command),
+        _ => None,
+    }
+}
+
 fn run_focused_verification(
     executor: &NativeReleaseExecutor,
     words: &[&str],
@@ -1331,10 +1395,9 @@ fn run_focused_verification(
         failure.class,
         crate::release_recovery::ReleaseFailureClass::TestRegression
             | crate::release_recovery::ReleaseFailureClass::FlakyOrTimingSensitiveTest
-    ) && !matches!(
-        words,
-        ["cargo", "test", ..] | ["python" | "python3" | "node", ..]
-    ) {
+    ) && !(cargo_command(words) == Some("test")
+        || matches!(words, ["python" | "python3" | "node", ..]))
+    {
         return Err(RrcError::Invalid(
             "test failure requires an executed regression, not compilation alone".into(),
         ));
@@ -1350,7 +1413,7 @@ fn run_focused_verification(
             ))
         )));
     }
-    if matches!(words, ["cargo", "test", ..]) {
+    if cargo_command(words) == Some("test") {
         let output = String::from_utf8_lossy(&output.stdout);
         if let Some(test) = failed_rust_test(&failure.causal_excerpt)
             && !output
@@ -1387,7 +1450,9 @@ fn cargo_test_executed(output: &str) -> bool {
 fn credible_focused_command(command: &str) -> bool {
     // Conservative admission. Compound shell commands may hide failed proof;
     // unsupported tools require intervention rather than a made-up pass.
-    if command.contains([';', '|', '&', '\n', '`', '$', '>']) {
+    if command.contains([
+        ';', '|', '&', '\n', '\r', '`', '$', '>', '<', '(', ')', '\\', '\'', '"',
+    ]) {
         return false;
     }
     let words = command.split_whitespace().collect::<Vec<_>>();
@@ -1399,13 +1464,29 @@ fn credible_focused_command(command: &str) -> bool {
     }) {
         return false;
     }
+    let normalized = if words.get(1).is_some_and(|word| word.starts_with('+')) {
+        if words[1].len() == 1
+            || !words[1][1..].chars().all(|character| {
+                character.is_ascii_alphanumeric() || matches!(character, '.' | '-')
+            })
+        {
+            return false;
+        }
+        words
+            .iter()
+            .enumerate()
+            .filter_map(|(index, word)| (index != 1).then_some(*word))
+            .collect::<Vec<_>>()
+    } else {
+        words.clone()
+    };
     matches!(
-        words.as_slice(),
+        normalized.as_slice(),
         ["cargo", "test" | "check" | "clippy", ..]
             | [
                 "cargo",
                 "xtask",
-                "acceptance" | "architecture" | "verify" | "fixtures",
+                "acceptance" | "architecture" | "verify" | "fixtures" | "msrv",
                 ..
             ]
     ) || matches!(words.as_slice(), ["python" | "python3" | "node", script, ..] if script.contains("test") && !script.starts_with('-'))
@@ -2761,6 +2842,22 @@ mod tests {
         vesper_testkit::FakeProviderSession,
         tokio::runtime::Runtime,
     ) {
+        repair_test_factory_with_command(
+            label,
+            repaired,
+            "cargo test exact_regression --offline -- --exact",
+        )
+    }
+
+    fn repair_test_factory_with_command(
+        label: &str,
+        repaired: &str,
+        command: &str,
+    ) -> (
+        crate::WorkerFactory,
+        vesper_testkit::FakeProviderSession,
+        tokio::runtime::Runtime,
+    ) {
         use vesper_domain::{
             BoundedString, ContentPart, ContentText, ExtensionMap, FinishOutcome, ProviderId,
             ToolCall, ToolCallId, ToolId,
@@ -2808,7 +2905,7 @@ mod tests {
             )),
             Ok(script(
                 "run_command",
-                serde_json::json!({"command":"cargo test exact_regression --offline -- --exact"}),
+                serde_json::json!({"command":command}),
             )),
             Ok(vec![
                 Ok(ProviderStreamEvent::ContentDelta {
@@ -2866,6 +2963,120 @@ mod tests {
             vesper_domain::SessionPermissionMode::Bypass,
         );
         (factory, session, runtime)
+    }
+
+    #[test]
+    fn repair_worker_cannot_create_unadmitted_release_tags() {
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("src")).unwrap();
+        fs::write(root.path().join("src/lib.rs"), "pub fn answer() {}\n").unwrap();
+        let native =
+            NativeReleaseExecutor::new(root.path(), Arc::new(AtomicBool::new(false))).unwrap();
+        native.checked("git", &["init", "--quiet"]).unwrap();
+        native
+            .checked("git", &["config", "user.name", "RRC Fixture"])
+            .unwrap();
+        native
+            .checked(
+                "git",
+                &["config", "user.email", "rrc-fixture@example.invalid"],
+            )
+            .unwrap();
+        native.checked("git", &["add", "src/lib.rs"]).unwrap();
+        native
+            .checked("git", &["commit", "--quiet", "-m", "fixture"])
+            .unwrap();
+        let (factory, _, runtime) = repair_test_factory_with_command(
+            "fixture.release-authority",
+            "pub fn answer() {}\n",
+            "git tag rrc_unadmitted_fixture",
+        );
+        runtime
+            .block_on(factory.run_coding_turn_in_workspace(
+                root.path().to_path_buf(),
+                "Repair source without publishing".into(),
+                Arc::new(vesper_runtime::RuntimeCancellation::new()),
+            ))
+            .unwrap();
+        assert!(
+            !native
+                .command(
+                    "git",
+                    &["rev-parse", "--verify", "refs/tags/rrc_unadmitted_fixture"]
+                )
+                .unwrap()
+                .status
+                .success(),
+            "repair command bypassed native tag admission"
+        );
+        let registry = repair_tool_registry();
+        let context = vesper_agent::ToolContext {
+            workspace_roots: vec![vesper_domain::WorkspaceRoot {
+                name: vesper_domain::BoundedString::new("repair-fixture").unwrap(),
+                path: vesper_domain::BoundedString::new(root.path().display().to_string()).unwrap(),
+                primary: true,
+            }],
+            firewall: None,
+            sandbox: None,
+            provider_id: factory.config.provider_id.clone(),
+            operating_mode: vesper_domain::SessionOperatingMode::Code,
+            permission_mode: vesper_domain::SessionPermissionMode::Bypass,
+            conversation: Vec::new(),
+            cancellation: Arc::new(vesper_runtime::RuntimeCancellation::new()),
+        };
+        for (tool, arguments) in [
+            (
+                "run_command",
+                serde_json::json!({"command":"gh release create v0.1.0"}),
+            ),
+            (
+                "run_command",
+                serde_json::json!({"command":"cargo test exact; git tag bypass"}),
+            ),
+            (
+                "write_file",
+                serde_json::json!({"path":".git/refs/tags/bypass", "content":"unadmitted"}),
+            ),
+            (
+                "write_file",
+                serde_json::json!({"path":".GIT/refs/tags/bypass", "content":"unadmitted"}),
+            ),
+            (
+                "edit_file",
+                serde_json::json!({"path":".git/config", "old_text":"fixture", "new_text":"bypass"}),
+            ),
+            (
+                "apply_patch",
+                serde_json::json!({"path":".git/config", "patch":"unadmitted"}),
+            ),
+        ] {
+            let call = vesper_domain::ToolCall {
+                id: vesper_domain::ToolCallId::new("denial-fixture").unwrap(),
+                tool_id: vesper_domain::ToolId::new(tool).unwrap(),
+                arguments,
+                extensions: vesper_domain::ExtensionMap::default(),
+            };
+            assert!(
+                matches!(
+                    runtime.block_on(registry.execute(&call, &context)),
+                    Err(vesper_agent::ToolError::InvalidArguments { .. })
+                ),
+                "{tool}"
+            );
+        }
+        // Source mentioning Git metadata remains a legitimate repair input.
+        let source = vesper_domain::ToolCall {
+            id: vesper_domain::ToolCallId::new("source-fixture").unwrap(),
+            tool_id: vesper_domain::ToolId::new("write_file").unwrap(),
+            arguments: serde_json::json!({"path":"src/lib.rs", "content":"// .git/config is controller-owned\n"}),
+            extensions: vesper_domain::ExtensionMap::default(),
+        };
+        assert!(
+            runtime
+                .block_on(registry.execute(&source, &context))
+                .is_ok()
+        );
+        assert!(!root.path().join(".git/refs/tags/bypass").exists());
     }
 
     #[test]
@@ -3927,12 +4138,25 @@ mod tests {
             "cargo test exact; echo pass",
             "cargo test exact > /tmp/log",
             "cargo test exact && true",
+            "git tag v0.1.0",
+            "gh release create v0.1.0",
+            "cargo test exact\ngit tag v0.1.0",
+            "cargo test $(git tag v0.1.0)",
+            "cargo + test exact",
         ] {
             assert!(!credible_focused_command(command), "{command}");
         }
         assert!(credible_focused_command(
             "cargo test -p vesper-harness exact_regression -- --exact"
         ));
+        assert!(credible_focused_command(
+            "cargo +1.88.0 test exact_regression -- --exact"
+        ));
+        assert!(credible_focused_command("cargo xtask msrv"));
+        assert_eq!(
+            cargo_command(&["cargo", "+1.88.0", "test", "exact"]),
+            Some("test")
+        );
     }
 
     #[test]

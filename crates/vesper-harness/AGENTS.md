@@ -32,7 +32,14 @@ Z.ai and Playwright MCP server descriptors.
   journaled before execution; uncertain restart never replays them.
   Promotion requires an observed mutation, explicit hypothesis, native focused
   re-verification after the final edit, a nonempty patch and full local gates.
-  Cargo test proof must execute tests and include an identifiable failing test.
+  Cargo test proof must execute tests and include an identifiable failing test,
+  including explicit rustup toolchain selections. The repair role advertises and
+  dispatches only core source tools with supported verification commands; direct
+  Git/GitHub lifecycle commands, compound shells and explicit Git metadata writes
+  refuse before execution. Hosted schemas are removed from this role. Existing
+  permission/firewall/sandbox enforcement still applies; verification subprocesses
+  are not an additional OS sandbox. Controller-owned release operations use typed
+  admissions outside the model tool registry.
   Local repair preserves the version seed and includes new files; candidate
   commits include only admitted version/repair paths. Native version preparation
   resolves the complete Cargo workspace inventory before writing, updates all

@@ -65,6 +65,8 @@ architecture, MSRV, and source-oracle checks.
   owner-action/uncertainty settlement before permission, repair or mutation journals.
   The named health-routing case proves read-only diagnosis without source permission,
   authoritative rerun refusal and firewall checks for the actual GitHub write scope.
+  The named repair-authority case uses real native tools and a temporary Git repo
+  to prove that model commands cannot create a tag outside controller admission.
 
 ## Verification
 
