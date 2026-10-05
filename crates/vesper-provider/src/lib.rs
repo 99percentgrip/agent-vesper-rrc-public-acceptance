@@ -1,0 +1,49 @@
+#![forbid(unsafe_code)]
+//! Cohesive ports and capability contracts implemented by future provider adapters.
+
+mod capability;
+mod error;
+mod model_capability;
+mod ports;
+mod request;
+mod stream;
+mod superpowers;
+mod usage;
+pub use usage::{ProviderUsage, UsageContext, UsageWindow, render_usage};
+
+pub use capability::{
+    AuthenticationCapability, CapabilityResolution, ContinuationCapability,
+    ExternalRuntimeCapability, MediaCapability, ModelLimits, PreservedReasoningCapability,
+    PromptCacheCapability, ProviderCapabilities, ReasoningCapability, StreamedReasoningCapability,
+    StructuredOutputCapability, SupportLevel, ToolCapability, ToolChoiceCapability,
+    resolve_support,
+};
+pub use error::{ProviderError, RetryDecision};
+pub use model_capability::{
+    CapabilityAdvisor, CapabilityContext, CapabilityDenial, CatalogCapabilityAdvisor,
+    ModelCapabilityIndex, gate_messages, requirement_for_messages, suggestion_for_requirement,
+};
+pub use ports::{
+    AuthenticationInventory, AuthenticationMethodDescriptor, AuthenticationMethodState,
+    AuxiliaryRequestPort, CancellationSignal, CredentialError, CredentialRemovalScope,
+    CredentialSource, EndpointConfiguration, HostedToolDescriptor, HostedToolEgressClass,
+    InteractiveLoginKind, ModelCatalog, ModelCatalogProvenance, ModelCatalogSnapshot,
+    ModelDescriptor, NativeCompactionPort, NativeCompactionRequest, NativeCompactionResult,
+    ProviderConfiguration, ProviderCredentialPort, ProviderDescriptor, ProviderEventStream,
+    ProviderFactory, ProviderFuture, ProviderSession,
+};
+pub use request::{
+    AuxiliaryRequestIntent, ContinuationContext, ContinuationReason, ContinuationStrategy,
+    FallbackDecision, FallbackPolicy, HostedToolSelection, ProviderConfigContribution,
+    ProviderRequest, ReasoningIntent, RequestValidationError, SamplingIntent,
+    StructuredOutputIntent, ToolChoice,
+};
+pub use stream::{
+    ProviderStreamContract, ProviderStreamContractError, ProviderStreamEvent, QuotaUpdate,
+    RateLimitUpdate,
+};
+pub use superpowers::{
+    PermissiveSuperpowerPolicy, PlanChangeReaction, ProviderSuperpowers, SuperpowerDescriptor,
+    SuperpowerKind, SuperpowerPolicy, SuperpowerScope, SuperpowerSideEffect, SuperpowerValue,
+    parse_superpower_value, superpower_value_json,
+};

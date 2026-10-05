@@ -1,0 +1,19 @@
+[package]
+name = "rust-sse-transport-spike"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+# Standalone workspace root: this disposable spike is excluded from the
+# production workspace (root Cargo.toml `exclude = ["spikes/*"]`). Declaring
+# an empty workspace here prevents cargo from walking up and erroring on the
+# exclusion when invoked via `--manifest-path`.
+[workspace]
+
+[dependencies]
+httpdate = "=1.0.3"
+reqwest = { version = "=0.13.4", default-features = false, features = ["json", "rustls"] }
+serde_json = "=1.0.145"
+tokio = { version = "=1.52.0", default-features = false, features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+tokio-util = { version = "=0.7.17" }

@@ -1,0 +1,35 @@
+[package]
+name = "vesper-provider-openai"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+base64.workspace = true
+fs2 = "=0.4.3"
+futures-core.workspace = true
+futures-util.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+url.workspace = true
+zeroize.workspace = true
+vesper-auth = { path = "../vesper-auth", version = "=0.24.4" }
+vesper-domain = { path = "../vesper-domain", version = "=0.24.4" }
+vesper-provider = { path = "../vesper-provider", version = "=0.24.4" }
+vesper-security = { path = "../vesper-security", version = "=0.24.4" }
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["io-util", "net", "test-util"] }
+
+[lints]
+workspace = true
+
+[features]
+integration-test-harness = []

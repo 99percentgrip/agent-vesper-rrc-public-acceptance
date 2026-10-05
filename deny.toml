@@ -1,0 +1,39 @@
+[graph]
+all-features = true
+
+[advisories]
+yanked = "deny"
+ignore = []
+
+[licenses]
+confidence-threshold = 0.93
+allow = [
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "MIT-0",
+    "Unicode-3.0",
+    "Zlib",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# ADR 0015 (Stage 16) supersedes the historical Stage-5 blanket SQLite ban.
+# vesper-cognition is the ONLY production crate permitted to declare rusqlite
+# (enforced by cargo xtask architecture's per-crate allowlist). sqlx remains
+# banned — the project does not use an async SQLite driver.
+deny = [
+    { crate = "sqlx", reason = "Stage 5 session persistence is read-only and explicitly excludes SQLite" },
+]
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "path": "crates/vesper-agent/src/executor.rs",
+      "sha256": "d4d1e19a44a862755a86ff605c92d7770f059e7de82125bedede0c28bb325916",
+      "count": 1
+    },
+    {
+      "path": "crates/vesper-agent/src/project_context.rs",
+      "sha256": "09455125f949bc6effab2b75ba84294d96dd16be8bc3625ab57ca3c331c9d1ac",
+      "count": 1
+    },
+    {
+      "path": "crates/vesper-agent/src/project_context.rs",
+      "sha256": "69eb73fb1067b8a488766d7fe8dccddd312175cbe436079195ec65ed32078edd",
+      "count": 1
+    },
+    {
+      "path": "crates/vesper-agent/src/project_context.rs",
+      "sha256": "6b1ff4fd834d654d82acec1950ba775c38a09d6fa236cdc45c3c1282a14f74cf",
+      "count": 1
+    },
+    {
+      "path": "crates/vesper-agent/src/vro/learning.rs",
+      "sha256": "cafac7880a4d1879ff943425d495b94e9091f5d9f60db8713e66d023261ec95c",
+      "count": 1
+    },
+    {
+      "path": "crates/vesper-domain/AGENTS.md",
+      "sha256": "d77b5ee5915c289030ddf52d4bd1d83561c564be2d4d6b71b4d8b60cac2ba81d",
+      "count": 1
+    },
+    {
+      "path": "crates/vesper-domain/src/tool.rs",
+      "sha256": "cf50463b0643003608908c6fbb86bf252e3f4084ead0ebf52a0c1b16dbfc01ce",
+      "count": 1
+    },
+    {
+      "path": "crates/vesper-security/src/scope.rs",
+      "sha256": "9912965f72ae61ade89ba12173181b9d197f87c2e135712d3d3559f867596931",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/cua-driver-readme.md",
+      "sha256": "1f986cec11f948d5ce90b29ff7cabc92783bcb7a1bbdd8c16934396432f3ca50",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/cua-driver-readme.md",
+      "sha256": "24a7d6c00814e339684fc311c1776aba48e2a6b34e8d6372239289ac8f3e0756",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/cua-driver-readme.md",
+      "sha256": "27ebd6a8d01d7f6fa34d58b7df41db3d3056acda6099b36e882e2ecb3f37c61e",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/cua-driver-readme.md",
+      "sha256": "460b2f67b841110f10980263aeeaa9de67027be7635adafcc9f3a39516d428a7",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/cua-driver-readme.md",
+      "sha256": "c5d587b8fac46b400ca722a2124c574242a8971ed47680355bb43d80992dc852",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/cua-driver-readme.md",
+      "sha256": "d2e4b97e16b534b07f0c1e8e0e3efb4a50690a7f59ffa21935ec04c6e9d45381",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/cua-driver-readme.md",
+      "sha256": "eec04cee5bd831e14e95f8c977daa2356b7c4ee9bf49fc65248a60fae9d511b0",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/cua-mcp-protocol.md",
+      "sha256": "69989dde68a8df0e370ef95f77131d78912a597820ae9fad96fa8b21da7fc010",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/playwright-mcp-readme.md",
+      "sha256": "1404eb81adf5f9158aeee0d0467e56cb555779bba8cdcbaf46e6d316ef5afc0f",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/playwright-mcp-readme.md",
+      "sha256": "1435299b692cc25e9d5be42c1682b21b5dea6bcd1ca1be37381d01eb97f2d48e",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/playwright-mcp-readme.md",
+      "sha256": "41ca2c4c0cbd9b6d439a5ea0e983ab8ecbcbe1c120acaa64fb347ffc304d87bf",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/playwright-mcp-readme.md",
+      "sha256": "470925653aadcc53510aa86e4783cff283fd7e9487cc56065a5899bf290d357e",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/playwright-mcp-readme.md",
+      "sha256": "c5d648044d9e2f1a653260ef7086448a5c8d7fafe43c48bd1cac7eb5c657d39c",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/resolve-mcp-readme.md",
+      "sha256": "257595c746315f68329dd34790f3371569187e28dc942b0344573a5649612551",
+      "count": 1
+    },
+    {
+      "path": "docs/Vesper bridge/recon/resolve-mcp-readme.md",
+      "sha256": "d552af6d2bd962eb873d834cc76504e53c15ed43ee5d0431f9a3315802948504",
+      "count": 1
+    },
+    {
+      "path": "docs/adr/0014-agent-vesper-authentication.md",
+      "sha256": "f7a4ce830882771f29949b65525d487af41684312b105ed1dbd4669b7c686e24",
+      "count": 1
+    },
+    {
+      "path": "docs/adr/0017-vesper-lens-native-oracle.md",
+      "sha256": "5e74669d3a6adf367c4b0272a8e2683a6a8de69dbaa9fb8dd21329b215bc3094",
+      "count": 1
+    },
+    {
+      "path": "docs/adr/0018-vesper-lens-interactive-interview.md",
+      "sha256": "6dc8659ccb902200930e91cf4f49bbc18cae8ece4a297f3164015d7c3f8a136b",
+      "count": 1
+    },
+    {
+      "path": "docs/adr/0023-token-aware-semantic-context-compaction.md",
+      "sha256": "071f499ec203cedabc6d24a5e297c5fd06bc13df6ddcbf8629b14f7e8f6e8ba5",
+      "count": 1
+    },
+    {
+      "path": "docs/adr/0024-provider-neutral-skill-orchestration.md",
+      "sha256": "ebdd257d3bef3585d20fb5bd24f4fe7f0a82a1c9ca8e2613c462a477a2c782f1",
+      "count": 1
+    },
+    {
+      "path": "docs/agent-vesper-reasoning-orchestrator-prd.md",
+      "sha256": "0afeba8628e9087b55aa8d7c1ff5819ac6b1ee80f63db4e856af258c20b89bea",
+      "count": 1
+    },
+    {
+      "path": "docs/agent-vesper-reasoning-orchestrator-prd.md",
+      "sha256": "1787cfe4bf741f8cc5de0937deeba4a3e6218e48cd9fabad444318382340f34c",
+      "count": 1
+    },
+    {
+      "path": "docs/recon/master-migration-plan.md",
+      "sha256": "1eabfbe570e0c9584e492fb874a95fed6584daedb61b547dd7999e188774e89c",
+      "count": 1
+    },
+    {
+      "path": "docs/recon/provider-abstraction-analysis.md",
+      "sha256": "04149021c87e111498602f2db3d4593130dc41463d76cc94b64d4b1f3b1aa945",
+      "count": 1
+    },
+    {
+      "path": "docs/recon/provider-abstraction-analysis.md",
+      "sha256": "b3d2d9758957d046b233f52980fc774d07144c2c565295c9a39b437cf2b7ca79",
+      "count": 1
+    },
+    {
+      "path": "docs/recon/provider-abstraction-analysis.md",
+      "sha256": "e1550dce845ee225db5d921ba39ad46a5fec7ec5a19b2c5377bcf595409d4ca1",
+      "count": 1
+    },
+    {
+      "path": "docs/recon/rust-architecture-proposal.md",
+      "sha256": "5009ee286ba3d0091f15738a3cfa6d7ec82374ebc9303ec3e2e7e15e67a22ec4",
+      "count": 1
+    },
+    {
+      "path": "docs/recon/rust-architecture-proposal.md",
+      "sha256": "d9b687488c9be4198b4d7b9f94854410dfd7642696ff423b168ff1985c143f65",
+      "count": 1
+    }
+  ]
+}

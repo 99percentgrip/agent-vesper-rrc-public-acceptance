@@ -1,0 +1,20 @@
+[package]
+name = "vesper-process-sandbox-spike"
+version = "0.0.0"
+edition = "2021"
+publish = false
+rust-version = "1.88"
+
+# Standalone workspace root: this disposable spike is excluded from the
+# production workspace (root Cargo.toml `exclude = ["spikes/*"]`). Declaring
+# an empty workspace here prevents cargo from walking up and erroring on the
+# exclusion when invoked via `--manifest-path` (e.g. platform-foundation CI).
+[workspace]
+
+[dependencies]
+libc = "=0.2.189"
+tokio = { version = "=1.52.0", features = ["io-util", "macros", "process", "rt-multi-thread", "sync", "time"] }
+tokio-util = "=0.7.17"
+
+[dev-dependencies]
+tempfile = "=3.23.0"
