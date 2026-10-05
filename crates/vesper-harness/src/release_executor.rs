@@ -1488,6 +1488,23 @@ pub fn advance_release(
     if cancelled.load(Ordering::Acquire) || record.state == ReleaseRecoveryState::Cancelled {
         return Ok(());
     }
+    if record.state == ReleaseRecoveryState::ClassifyingFailure
+        && matches!(
+            crate::release_recovery::next_directive(record, 0),
+            crate::release_recovery::ReleaseDirective::Escalate
+        )
+    {
+        let commit = record.active_commit().unwrap_or("unknown").to_owned();
+        record.transition(
+            ReleaseRecoveryState::Escalated,
+            &commit,
+            "GitHub account execution restriction requires owner action before progression",
+            vec!["rrc:account-execution-restriction".into()],
+            None,
+        )?;
+        ledger.save(record)?;
+        return Ok(());
+    }
     if matches!(
         record.state,
         ReleaseRecoveryState::ClassifyingFailure | ReleaseRecoveryState::DiagnosingLocalFailure
@@ -2046,6 +2063,37 @@ impl Drop for CheckpointCancellationWatcher {
     }
 }
 
+fn release_stage_has_side_effects(record: &ReleaseRecoveryRecord) -> bool {
+    use crate::release_recovery::{EvidenceConfidence, ReleaseDirective};
+    use ReleaseRecoveryState as S;
+    match record.state {
+        S::ClassifyingFailure => {
+            matches!(
+                crate::release_recovery::next_directive(record, 0),
+                ReleaseDirective::RequestFocusedRepair { .. }
+                    | ReleaseDirective::RunExternalHealthCheck
+            ) && record.failures.last().is_some_and(|failure| {
+                matches!(
+                    failure.confidence,
+                    EvidenceConfidence::Proven | EvidenceConfidence::StronglySupported
+                )
+            })
+        }
+        S::DiagnosingLocalFailure => !record.failures.last().is_some_and(|failure| {
+            matches!(
+                failure.confidence,
+                EvidenceConfidence::Tentative | EvidenceConfidence::Unknown
+            )
+        }),
+        S::LocalVerification
+        | S::CandidateReady
+        | S::RetryAdmissible
+        | S::RemoteGatesGreen
+        | S::DiagnosingRepair => true,
+        _ => false,
+    }
+}
+
 fn drive_release_worker(
     context: ReleaseAdvanceContext<'_>,
     mut wait: impl FnMut(Duration) -> bool,
@@ -2145,28 +2193,11 @@ fn drive_release_worker(
         }
         let before = record.clone();
         // Side effects require the same host permission port as ordinary tools.
-        if matches!(
-            record.state,
-            ReleaseRecoveryState::LocalVerification
-                | ReleaseRecoveryState::CandidateReady
-                | ReleaseRecoveryState::RetryAdmissible
-                | ReleaseRecoveryState::RemoteGatesGreen
-                | ReleaseRecoveryState::ClassifyingFailure
-                | ReleaseRecoveryState::DiagnosingLocalFailure
-                | ReleaseRecoveryState::DiagnosingRepair
-        ) {
+        let has_side_effects = release_stage_has_side_effects(&record);
+        if has_side_effects {
             authorize(&record)?;
         }
-        let journals_mutation = matches!(
-            record.state,
-            ReleaseRecoveryState::LocalVerification
-                | ReleaseRecoveryState::CandidateReady
-                | ReleaseRecoveryState::RetryAdmissible
-                | ReleaseRecoveryState::RemoteGatesGreen
-                | ReleaseRecoveryState::ClassifyingFailure
-                | ReleaseRecoveryState::DiagnosingLocalFailure
-                | ReleaseRecoveryState::DiagnosingRepair
-        );
+        let journals_mutation = has_side_effects;
         let journals_mutation = journals_mutation
             && (record.state != ReleaseRecoveryState::LocalVerification
                 || record.mutation.version_after.is_none()
@@ -3462,6 +3493,98 @@ mod tests {
                 summary: "none: operational".into(),
                 evidence_ref: "https://www.githubstatus.com/".into(),
             })
+        }
+    }
+
+    #[test]
+    fn native_worker_stops_owner_action_and_uncertain_causes_before_repair_permission() {
+        struct FailedGithub(&'static str);
+        impl GitHubEvidencePort for FailedGithub {
+            fn matrix_for_sha(
+                &self,
+                repository: &str,
+                sha: &str,
+            ) -> Result<Vec<crate::release_recovery::GateRecord>, RrcError> {
+                let mut gates = GreenGithub.matrix_for_sha(repository, sha)?;
+                gates[0].run_state = Some(crate::release_recovery::JobState::Failure);
+                gates[0].jobs[0].state = crate::release_recovery::JobState::Failure;
+                gates[0].jobs[0].failed_step = Some("Execute job".into());
+                Ok(gates)
+            }
+            fn job_log(&self, _: &str, _: u64) -> Result<String, RrcError> {
+                Ok(self.0.into())
+            }
+            fn rerun_job(&self, _: &str, _: u64) -> Result<(), RrcError> {
+                panic!("no retry admission")
+            }
+            fn rerun_failed(&self, _: &str, _: u64) -> Result<(), RrcError> {
+                panic!("no retry admission")
+            }
+            fn rerun_workflow(&self, _: &str, _: u64) -> Result<(), RrcError> {
+                panic!("no retry admission")
+            }
+        }
+        struct NoHealth;
+        impl ExternalHealthPort for NoHealth {
+            fn official_status(&self) -> Result<OfficialStatusSnapshot, RrcError> {
+                panic!("no outage claim")
+            }
+        }
+        for (cause, expected) in [
+            (
+                "The job was not started because recent account payments have failed. Please check your account billing settings.",
+                ReleaseRecoveryState::Escalated,
+            ),
+            (
+                "Unrecognized terminal diagnostic",
+                ReleaseRecoveryState::NeedMoreEvidence,
+            ),
+        ] {
+            for continuous in [false, true] {
+                let temp = tempfile::tempdir().unwrap();
+                let ledger = ReleaseLedger::open(temp.path().to_path_buf(), "repo").unwrap();
+                let mut record = crate::release_recovery::start_release(
+                    "repo",
+                    "patch",
+                    "main",
+                    &"a".repeat(40),
+                )
+                .unwrap();
+                record.state = ReleaseRecoveryState::DiagnosingLocalFailure;
+                assert!(release_stage_has_side_effects(&record));
+                record.state = ReleaseRecoveryState::RemoteGateRunning;
+                let github = FailedGithub(cause);
+                refresh_remote_evidence(&mut record, "owner/repo", &github).unwrap();
+                assert_eq!(record.state, ReleaseRecoveryState::ClassifyingFailure);
+                let budget = record.retry_budget.clone();
+                ledger.save(&record).unwrap();
+                let context = ReleaseAdvanceContext {
+                    workspace: temp.path(),
+                    repository: "owner/repo",
+                    ledger: &ledger,
+                    executor: &FakeRelease,
+                    github: &github,
+                    health: &NoHealth,
+                    repair_factory: None,
+                    cancelled: Arc::new(AtomicBool::new(false)),
+                };
+                if continuous {
+                    drive_release_worker(
+                        context,
+                        |_| true,
+                        |_| panic!("read-only routing must precede repair permission"),
+                    )
+                    .unwrap();
+                } else {
+                    advance_release(&mut record, context).unwrap();
+                }
+                let settled = ledger.load().unwrap().unwrap();
+                assert_eq!(settled.state, expected);
+                assert_eq!(settled.retry_budget, budget);
+                assert!(settled.mutation.in_flight_operation.is_none());
+                assert!(settled.repair_attempts.is_empty());
+                assert_eq!(settled.metrics.model_active_millis, 0);
+            }
         }
     }
 

@@ -71,6 +71,9 @@ Z.ai and Playwright MCP server descriptors.
   not a local user-cancelled epoch. GitHub account payment/spending restrictions
   require owner action: classify as credential/permission failures and escalate
   without model source repair, outage claims or automatic retry.
+  Direct executor and continuous worker honor this directive before source repair,
+  host mutation permission or mutation journaling; uncertain causes stop for evidence
+  before those side effects as well.
   CI logs strip terminal controls and exclude runner command echoes before causal
   extraction; fingerprints ignore unrelated interleaved output/exit wrappers.
   A 404 log response may use bounded failure annotations only from the completed

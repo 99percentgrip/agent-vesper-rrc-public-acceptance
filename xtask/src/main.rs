@@ -2173,6 +2173,11 @@ fn acceptance_verify() -> Result<(), String> {
         (
             "vesper-harness",
             &["--lib"],
+            "release_executor::tests::native_worker_stops_owner_action_and_uncertain_causes_before_repair_permission",
+        ),
+        (
+            "vesper-harness",
+            &["--lib"],
             "release_recovery::tests::github_failed_job_retry_requires_exact_admission_scope",
         ),
         (
