@@ -70,6 +70,9 @@ architecture, MSRV, and source-oracle checks.
   The named repair-budget case executes distinct real Cargo commands with host
   caps zero, five and one hundred, and proves bounded unsuccessful exhaustion
   without changing the host configuration.
+  Provider-owned server tool selections are distinct from client gateways; the
+  named fixture proves their request/configuration retention without measuring
+  live hosted execution.
 
 ## Verification
 

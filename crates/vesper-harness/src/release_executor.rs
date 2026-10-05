@@ -2981,6 +2981,39 @@ mod tests {
     }
 
     #[test]
+    fn repair_preserves_provider_owned_hosted_tool_selections() {
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("src")).unwrap();
+        fs::write(root.path().join("Cargo.toml"),
+            "[package]\nname = \"release-hosted-selection-fixture\"\nversion = \"0.1.0\"\nedition = \"2024\"\n").unwrap();
+        let (mut factory, session, runtime) = repair_test_factory(
+            "fixture.release-hosted",
+            "#[test] fn exact_regression() {}\n",
+        );
+        let selected = vec![vesper_provider::HostedToolSelection {
+            tool_id: vesper_domain::BoundedString::new("fixture.remote-search").unwrap(),
+            configuration: None,
+        }];
+        factory.config.hosted_tools = selected.clone();
+        let (outcome, _) = runtime
+            .block_on(factory.run_coding_turn_in_workspace(
+                root.path().to_path_buf(),
+                "Repair with the already-selected provider tools".into(),
+                Arc::new(vesper_runtime::RuntimeCancellation::new()),
+            ))
+            .unwrap();
+        assert!(outcome.is_success());
+        assert_eq!(session.requests().len(), 3);
+        for request in session.requests() {
+            assert_eq!(
+                request.hosted_tools, selected,
+                "provider-owned tool selections must not be confused with client registry gateways"
+            );
+        }
+        assert_eq!(factory.config.hosted_tools, selected);
+    }
+
+    #[test]
     fn repair_iteration_budget_survives_disabled_host_cap() {
         for (host_cap, expected_cap) in [(0, 24), (5, 5), (100, 24)] {
             let root = tempfile::tempdir().unwrap();

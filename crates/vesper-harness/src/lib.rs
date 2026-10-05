@@ -2786,7 +2786,6 @@ impl WorkerFactory {
                 .map_err(|error| error.to_string())?,
             primary: true,
         }];
-        config.hosted_tools.clear();
         let mut worker = AgentLoop::new(
             self.registry.clone(),
             release_executor::repair_tool_registry(),

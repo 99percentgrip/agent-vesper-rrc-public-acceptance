@@ -2298,6 +2298,11 @@ fn acceptance_verify() -> Result<(), String> {
         (
             "vesper-harness",
             &["--lib"],
+            "release_executor::tests::repair_preserves_provider_owned_hosted_tool_selections",
+        ),
+        (
+            "vesper-harness",
+            &["--lib"],
             "release_executor::tests::repair_iteration_budget_survives_disabled_host_cap",
         ),
         (

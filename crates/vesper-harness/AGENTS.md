@@ -36,8 +36,10 @@ Z.ai and Playwright MCP server descriptors.
   including explicit rustup toolchain selections. The repair role advertises and
   dispatches only core source tools with supported verification commands; direct
   Git/GitHub lifecycle commands, compound shells and explicit Git metadata writes
-  refuse before execution. Hosted schemas are removed from this role. Existing
-  permission/firewall/sandbox enforcement still applies; verification subprocesses
+  refuse before execution. The client registry has no hosted gateways; previously
+  selected provider-owned server tools remain in provider requests under their
+  existing adapter policy. Existing permission/firewall/sandbox enforcement still
+  applies; verification subprocesses
   are not an additional OS sandbox. Controller-owned release operations use typed
   admissions outside the model tool registry.
   The repair factory uses a 24-iteration segment limit even when the invoking host
