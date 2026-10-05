@@ -2858,6 +2858,18 @@ mod tests {
         vesper_testkit::FakeProviderSession,
         tokio::runtime::Runtime,
     ) {
+        repair_test_factory_with_commands(label, repaired, &[command])
+    }
+
+    fn repair_test_factory_with_commands(
+        label: &str,
+        repaired: &str,
+        commands: &[&str],
+    ) -> (
+        crate::WorkerFactory,
+        vesper_testkit::FakeProviderSession,
+        tokio::runtime::Runtime,
+    ) {
         use vesper_domain::{
             BoundedString, ContentPart, ContentText, ExtensionMap, FinishOutcome, ProviderId,
             ToolCall, ToolCallId, ToolId,
@@ -2884,10 +2896,10 @@ mod tests {
                 Box::pin(async move { Ok(self.session.clone()) })
             }
         }
-        let script = |name: &str, arguments| {
+        let script = |name: &str, arguments, ordinal| {
             vec![
                 Ok(ProviderStreamEvent::ToolCallCompleted(ToolCall {
-                    id: ToolCallId::new(format!("fixture-{name}")).unwrap(),
+                    id: ToolCallId::new(format!("fixture-{name}-{ordinal}")).unwrap(),
                     tool_id: ToolId::new(name).unwrap(),
                     arguments,
                     extensions: ExtensionMap::default(),
@@ -2898,31 +2910,34 @@ mod tests {
                 }),
             ]
         };
-        let session = vesper_testkit::FakeProviderSession::with_scripts([
-            Ok(script(
-                "write_file",
-                serde_json::json!({"path":"src/lib.rs", "content":repaired}),
-            )),
+        let mut scripts = vec![Ok(script(
+            "write_file",
+            serde_json::json!({"path":"src/lib.rs", "content":repaired}),
+            0,
+        ))];
+        scripts.extend(commands.iter().enumerate().map(|(index, command)| {
             Ok(script(
                 "run_command",
                 serde_json::json!({"command":command}),
-            )),
-            Ok(vec![
-                Ok(ProviderStreamEvent::ContentDelta {
-                    stream_id: BoundedString::new("text").unwrap(),
-                    part: ContentPart::Text(
-                        ContentText::new(
-                            "Hypothesis: return the required answer; exact regression now passes.",
-                        )
-                        .unwrap(),
-                    ),
-                }),
-                Ok(ProviderStreamEvent::Completed {
-                    finish: FinishOutcome::Stop,
-                    metadata: ExtensionMap::default(),
-                }),
-            ]),
-        ]);
+                index + 1,
+            ))
+        }));
+        scripts.push(Ok(vec![
+            Ok(ProviderStreamEvent::ContentDelta {
+                stream_id: BoundedString::new("text").unwrap(),
+                part: ContentPart::Text(
+                    ContentText::new(
+                        "Hypothesis: return the required answer; exact regression now passes.",
+                    )
+                    .unwrap(),
+                ),
+            }),
+            Ok(ProviderStreamEvent::Completed {
+                finish: FinishOutcome::Stop,
+                metadata: ExtensionMap::default(),
+            }),
+        ]));
+        let session = vesper_testkit::FakeProviderSession::with_scripts(scripts);
         let id = ProviderId::new(label).unwrap();
         let registry = Arc::new(vesper_runtime::ProviderRegistry::new());
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -2963,6 +2978,46 @@ mod tests {
             vesper_domain::SessionPermissionMode::Bypass,
         );
         (factory, session, runtime)
+    }
+
+    #[test]
+    fn repair_iteration_budget_survives_disabled_host_cap() {
+        for (host_cap, expected_cap) in [(0, 24), (5, 5), (100, 24)] {
+            let root = tempfile::tempdir().unwrap();
+            fs::create_dir(root.path().join("src")).unwrap();
+            fs::write(root.path().join("Cargo.toml"),
+                "[package]\nname = \"release-iteration-fixture\"\nversion = \"0.1.0\"\nedition = \"2024\"\n").unwrap();
+            let commands = (0..30)
+                .map(|index| format!("cargo check --offline --target-dir target/limit-{index}"))
+                .collect::<Vec<_>>();
+            let command_refs = commands.iter().map(String::as_str).collect::<Vec<_>>();
+            let (mut factory, session, runtime) = repair_test_factory_with_commands(
+                "fixture.release-iterations",
+                "pub fn answer() {}\n",
+                &command_refs,
+            );
+            factory.config.max_tool_iterations = host_cap;
+            let (outcome, _) = runtime
+                .block_on(factory.run_coding_turn_in_workspace(
+                    root.path().to_path_buf(),
+                    "Execute bounded focused verification".into(),
+                    Arc::new(vesper_runtime::RuntimeCancellation::new()),
+                ))
+                .unwrap();
+            assert_eq!(
+                session.requests().len(),
+                expected_cap,
+                "host cap {host_cap} must not weaken the repair budget"
+            );
+            assert!(
+                !outcome.is_success(),
+                "iteration exhaustion cannot become successful repair"
+            );
+            assert_eq!(
+                factory.config.max_tool_iterations, host_cap,
+                "ordinary host setting stays intact"
+            );
+        }
     }
 
     #[test]

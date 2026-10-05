@@ -2775,7 +2775,11 @@ impl WorkerFactory {
         cancellation: Arc<vesper_runtime::RuntimeCancellation>,
     ) -> Result<(AgentTurnOutcome, Vec<ConversationMessage>), String> {
         let mut config = self.config.clone();
-        config.max_tool_iterations = config.max_tool_iterations.min(24);
+        config.max_tool_iterations = if config.max_tool_iterations == 0 {
+            24
+        } else {
+            config.max_tool_iterations.min(24)
+        };
         config.workspace_roots = vec![WorkspaceRoot {
             name: BoundedString::new("release-repair").expect("static workspace name"),
             path: BoundedString::new(workspace.display().to_string())

@@ -40,6 +40,10 @@ Z.ai and Playwright MCP server descriptors.
   permission/firewall/sandbox enforcement still applies; verification subprocesses
   are not an additional OS sandbox. Controller-owned release operations use typed
   admissions outside the model tool registry.
+  The repair factory uses a 24-iteration segment limit even when the invoking host
+  disables its ordinary cap with zero; smaller positive host limits stay smaller.
+  The existing native plan continuation and 20-minute repair deadline still apply.
+  This copied repair configuration never changes the ordinary host setting.
   Local repair preserves the version seed and includes new files; candidate
   commits include only admitted version/repair paths. Native version preparation
   resolves the complete Cargo workspace inventory before writing, updates all

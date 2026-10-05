@@ -2298,6 +2298,11 @@ fn acceptance_verify() -> Result<(), String> {
         (
             "vesper-harness",
             &["--lib"],
+            "release_executor::tests::repair_iteration_budget_survives_disabled_host_cap",
+        ),
+        (
+            "vesper-harness",
+            &["--lib"],
             "release_executor::tests::repair_worker_cannot_create_unadmitted_release_tags",
         ),
         (

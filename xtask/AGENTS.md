@@ -67,6 +67,9 @@ architecture, MSRV, and source-oracle checks.
   authoritative rerun refusal and firewall checks for the actual GitHub write scope.
   The named repair-authority case uses real native tools and a temporary Git repo
   to prove that model commands cannot create a tag outside controller admission.
+  The named repair-budget case executes distinct real Cargo commands with host
+  caps zero, five and one hundred, and proves bounded unsuccessful exhaustion
+  without changing the host configuration.
 
 ## Verification
 
