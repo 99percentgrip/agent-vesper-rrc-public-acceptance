@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "objective_id": "rrc-parity-source-integration-20261006",
-  "objective_label": "RRC parity source integration for v0.24.5",
-  "variant_label": "Production parity source with isolated Windows SSE verification",
-  "variant_id": "rrc-parity-production-windows-sse-verified-source-20261006",
-  "canonical_release_source": true,
+  "objective_id": "windows-readiness-ci-diagnostic-20261006",
+  "objective_label": "Focused command readiness and MCP startup diagnosis",
+  "variant_label": "Public native focused diagnostic",
+  "variant_id": "windows-readiness-ci-diagnostic-20261006",
+  "canonical_release_source": false,
   "supersedes": [
     "rrc-source-resolution-ux-repair-20260930",
     "corrected-v0.24.4-prerelease-integration-20261001",

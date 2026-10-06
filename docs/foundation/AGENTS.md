@@ -6,6 +6,13 @@ Own evidence and decisions that close the pre-workspace blockers identified by r
 
 ## Ownership
 
+- `2026-10-06-documentation-ci-and-windows-readiness-repair.md` owns the
+  post-publication documentation-trigger mistake, complete cancelled matrix,
+  retained Windows readiness failures, two-case red/green startup proof,
+  report-path exclusions and same-commit documentation regulation. Its evidence
+  companions retain actual local/native checks; later exact-main results belong
+  in the owned local report without an automatic documentation-only push.
+
 - `2026-10-06-rrc-parity-production-release.md` owns reconciliation of the frozen
   parity candidate with newer production, current-source verification, exact-SHA
   prerequisite/publication receipts, immutable release closeout and the in-place

@@ -1,5 +1,13 @@
 # Foundation Evidence Index
 
+## Documentation CI and Windows readiness repair (2026-10-06)
+
+- [Repair report](2026-10-06-documentation-ci-and-windows-readiness-repair.md)
+  records the unnecessary documentation push, Windows readiness failures and
+  cancelled matrix, same-commit documentation regulation, workflow exclusions
+  and two-case red/thirteen-case green proof. Native Windows and corrected
+  exact-main acceptance are pending; the published release is unchanged.
+
 ## RRC parity production release (2026-10-06)
 
 - [Release execution report](2026-10-06-rrc-parity-production-release.md) owns the
