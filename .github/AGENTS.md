@@ -195,3 +195,6 @@ migration gates and disposable platform assumptions on hosts unavailable locally
   and has no publication authority; production retains its lifecycle workflow.
 - The disposable diagnostic runner disables checkout CRLF conversion before
   checkout, preserving committed bytes for its cross-platform rustfmt check.
+- After all 145 functional cases passed in the complete three-runner matrix,
+  the follow-up checks only Windows LF formatting and workflow policy; it does
+  not rerun already-passing Rust suites or count formatting as functional proof.
