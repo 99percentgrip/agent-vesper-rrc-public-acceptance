@@ -193,3 +193,5 @@ migration gates and disposable platform assumptions on hosts unavailable locally
 - This controlled diagnostic branch replaces the lifecycle workflow with native
   Linux, Windows and Intel macOS readiness/MCP proof only. It is noncanonical
   and has no publication authority; production retains its lifecycle workflow.
+- The disposable diagnostic runner disables checkout CRLF conversion before
+  checkout, preserving committed bytes for its cross-platform rustfmt check.

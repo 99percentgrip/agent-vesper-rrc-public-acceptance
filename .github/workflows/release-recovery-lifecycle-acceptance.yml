@@ -28,6 +28,9 @@ jobs:
           - target: macos-intel
             runner: macos-15-intel
     steps:
+      - name: Preserve exact LF source bytes on disposable runner
+        shell: bash
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.candidate_ref }}
