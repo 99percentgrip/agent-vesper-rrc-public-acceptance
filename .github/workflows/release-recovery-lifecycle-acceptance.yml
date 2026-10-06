@@ -28,7 +28,8 @@ jobs:
         run: rustup toolchain install 1.95.0 --profile minimal
       - name: Run HTTP boundary suite
         shell: bash
-        run: cargo test --locked -p vesper-provider-xai --lib --all-features tests::http:: -- --test-threads=1 --nocapture
+        run: |
+          cargo test --locked -p vesper-provider-xai --lib --all-features tests::http:: -- --test-threads=1 --nocapture
       - name: Repeat oversized rejection and fragmented UTF-8
         shell: bash
         run: |

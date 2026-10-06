@@ -1,20 +1,11 @@
 {
   "version": 1,
-  "objective_id": "rrc-parity-source-integration-20261006",
-  "objective_label": "RRC parity source integration for v0.24.5",
-  "variant_label": "Production parity integration with bounded Windows SSE verification",
-  "variant_id": "rrc-parity-production-bounded-windows-sse-fixture-20261006",
-  "canonical_release_source": true,
-  "supersedes": [
-    "rrc-source-resolution-ux-repair-20260930",
-    "corrected-v0.24.4-prerelease-integration-20261001",
-    "corrected-v0.24.4-canonical-source-20261001",
-    "rrc-parity-production-source-20261006",
-    "rrc-parity-production-runner-annotations-20261006",
-    "rrc-parity-production-portable-governed-repair-20261006",
-    "rrc-parity-production-host-ledger-fixture-20261006",
-    "rrc-parity-production-isolated-openai-startup-20261006"
-  ],
+  "objective_id": "windows-sse-native-diagnostic-20261006",
+  "objective_label": "Isolated Windows SSE diagnostic",
+  "variant_label": "Non-publishing focused Windows and Linux diagnostic",
+  "variant_id": "windows-sse-native-diagnostic-20261006",
+  "canonical_release_source": false,
+  "supersedes": [],
   "completed_at": "2026-10-06T03:38:50.318795+00:00",
   "evidence_reports": [
     "docs/foundation/2026-10-06-rrc-parity-production-release.md"
